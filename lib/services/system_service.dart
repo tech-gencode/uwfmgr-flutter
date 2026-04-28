@@ -17,9 +17,10 @@ import '../models/uwf_status.dart';
 // - hyphen/underscore normalized to spaces
 // ---------------------------------------------------------------------------
 
-const Set<String> _currentSessionHeaders = {
+final Set<String> _currentSessionHeaders = {
   // EN
   'CURRENT SESSION',
+  'CURRENT SESSION SETTINGS',
   // IT
   'SESSIONE CORRENTE',
   // ES
@@ -32,9 +33,10 @@ const Set<String> _currentSessionHeaders = {
   'CONFIGURATION DE LA SESSION ACTUELLE', // placeholder to replace
 };
 
-const Set<String> _nextSessionHeaders = {
+final Set<String> _nextSessionHeaders = {
   // EN
   'NEXT SESSION',
+  'NEXT SESSION SETTINGS',
   // IT
   'SESSIONE SUCCESSIVA',
   // ES
@@ -47,9 +49,10 @@ const Set<String> _nextSessionHeaders = {
   'CONFIGURATION DE LA SESSION SUIVANTE', // placeholder to replace
 };
 
-const Set<String> _filterConfigHeaders = {
+final Set<String> _filterConfigHeaders = {
   // EN
   'FILTER CONFIGURATION',
+  'FILTER SETTINGS',
   // IT
   'CONFIGURAZIONE FILTRO',
   // ES
@@ -62,9 +65,10 @@ const Set<String> _filterConfigHeaders = {
   'CONFIGURATION DU FILTRE', // placeholder to replace
 };
 
-const Set<String> _overlayConfigHeaders = {
+final Set<String> _overlayConfigHeaders = {
   // EN
   'OVERLAY CONFIGURATION',
+  'OVERLAY SETTINGS',
   // IT
   'CONFIGURAZIONE OVERLAY',
   // ES
@@ -77,9 +81,10 @@ const Set<String> _overlayConfigHeaders = {
   'CONFIGURATION DE LA SUPERPOSITION', // placeholder to replace
 };
 
-const Set<String> _volumeConfigHeaders = {
+final Set<String> _volumeConfigHeaders = {
   // EN
   'VOLUME CONFIGURATION',
+  'VOLUME SETTINGS',
   // IT
   'CONFIGURAZIONE VOLUME',
   // ES
@@ -92,7 +97,7 @@ const Set<String> _volumeConfigHeaders = {
   'CONFIGURATION DU VOLUME', // placeholder to replace
 };
 
-const Set<String> _filterStateLabels = {
+final Set<String> _filterStateLabels = {
   // EN
   'FILTER STATE',
   // IT
@@ -107,7 +112,7 @@ const Set<String> _filterStateLabels = {
   'ETAT DU FILTRE', // placeholder to replace
 };
 
-const Set<String> _volumeStateLabels = {
+final Set<String> _volumeStateLabels = {
   // EN
   'VOLUME STATE',
   // IT
@@ -122,7 +127,7 @@ const Set<String> _volumeStateLabels = {
   'ETAT DU VOLUME', // placeholder to replace
 };
 
-const Set<String> _overlayTypeLabels = {
+final Set<String> _overlayTypeLabels = {
   // EN
   'OVERLAY TYPE',
   'TYPE',
@@ -141,7 +146,7 @@ const Set<String> _overlayTypeLabels = {
   'TYPE', // placeholder to replace
 };
 
-const Set<String> _overlaySizeLabels = {
+final Set<String> _overlaySizeLabels = {
   // EN
   'OVERLAY MAXIMUM SIZE',
   'MAXIMUM SIZE',
@@ -223,14 +228,25 @@ class SystemService {
 
   Future<UwfStatus> getUwfStatus() async {
     try {
-      // Eseguiamo il comando
       final result = await Process.run(
         'uwfmgr',
         ['get-config'],
         stdoutEncoding: SystemEncoding(),
+        stderrEncoding: SystemEncoding(),
       );
 
-      return parseUwfStatus(result.stdout.toString());
+      final rawStdout = result.stdout.toString();
+      final rawStderr = result.stderr.toString();
+      final stdout = _sanitizeCommandOutput(rawStdout);
+      final stderr = _sanitizeCommandOutput(rawStderr);
+
+      await _writeUwfDebugDump(
+        stdout: stdout,
+        stderr: stderr,
+        exitCode: result.exitCode,
+      );
+
+      return parseUwfStatus(stdout);
     } catch (e) {
       debugPrint("Errore critico UWF: $e");
       return UwfStatus(
@@ -263,8 +279,9 @@ class SystemService {
 
     for (final line in lines) {
       final normalizedLine = _normalizeForMatch(line);
-      final label = _extractNormalizedLabel(line);
-      final value = _extractNormalizedValue(line);
+      final parts = _extractNormalizedParts(line);
+      final label = parts?.$1;
+      final value = parts?.$2;
 
       if (_currentSessionHeaders.contains(normalizedLine)) {
         currentSection = 'current';
@@ -293,8 +310,8 @@ class SystemService {
         continue;
       }
 
-      if (label != null &&
-          currentBlock == 'filter' &&
+      if (currentBlock == 'filter' &&
+          label != null &&
           _filterStateLabels.contains(label)) {
         final enabled = _parseEnabledValue(value ?? normalizedLine);
         if (enabled != null) {
@@ -306,9 +323,9 @@ class SystemService {
         }
       }
 
-      if (label != null &&
-          currentBlock == 'volume' &&
-          _volumeStateLabels.contains(label)) {
+      if (currentBlock == 'volume' &&
+          label != null &&
+          (_volumeStateLabels.contains(label) || label.startsWith('VOLUME '))) {
         final protected = _parseProtectedValue(value ?? normalizedLine);
         if (protected != null) {
           if (currentSection == 'current') {
@@ -319,8 +336,8 @@ class SystemService {
         }
       }
 
-      if (label != null &&
-          currentBlock == 'overlay' &&
+      if (currentBlock == 'overlay' &&
+          label != null &&
           _overlayTypeLabels.contains(label)) {
         final parsedType = _parseOverlayType(value ?? normalizedLine);
         if (parsedType != null) {
@@ -332,8 +349,8 @@ class SystemService {
         }
       }
 
-      if (label != null &&
-          currentBlock == 'overlay' &&
+      if (currentBlock == 'overlay' &&
+          label != null &&
           _overlaySizeLabels.contains(label)) {
         final parsedSize = _parseOverlaySize(value ?? line);
         if (parsedSize != null) {
@@ -366,6 +383,8 @@ class SystemService {
         .where((l) => l.toUpperCase().startsWith("HKLM"))
         .toList();
 
+    final exclusions = <String>{...fileExclusions, ...regExclusions}.toList();
+
     return UwfStatus(
       isEnabled: resolvedCurrentEnabled,
       isNextSessionEnabled: resolvedNextEnabled,
@@ -374,10 +393,43 @@ class SystemService {
       isNextSessionProtected: resolvedNextProtected,
       overlayMode: resolvedOverlayType,
       overlaySize: resolvedOverlaySize,
-      exclusions: [...fileExclusions, ...regExclusions].isNotEmpty
-          ? [...fileExclusions, ...regExclusions]
-          : ["Nessuna esclusione"],
+      exclusions: exclusions,
     );
+  }
+
+  Future<void> _writeUwfDebugDump({
+    required String stdout,
+    required String stderr,
+    required int exitCode,
+  }) async {
+    try {
+      final dumpFile = File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}uwf_get_config_output.txt',
+      );
+
+      final buffer = StringBuffer()
+        ..writeln('timestamp=${DateTime.now().toIso8601String()}')
+        ..writeln('exit_code=$exitCode')
+        ..writeln('temp_file=${dumpFile.path}')
+        ..writeln('--- STDOUT BEGIN ---')
+        ..writeln(stdout)
+        ..writeln('--- STDOUT END ---')
+        ..writeln('--- STDERR BEGIN ---')
+        ..writeln(stderr)
+        ..writeln('--- STDERR END ---');
+
+      await dumpFile.writeAsString(buffer.toString(), flush: true);
+      debugPrint('UWF dump scritto in: ${dumpFile.path}');
+    } catch (e) {
+      debugPrint('Impossibile scrivere dump UWF: $e');
+    }
+  }
+
+  String _sanitizeCommandOutput(String input) {
+    return input
+        .replaceAll('\u0000', '')
+        .replaceAll('\uFEFF', '')
+        .replaceAll('\r\r\n', '\r\n');
   }
 
   String _normalizeForMatch(String input) {
@@ -415,20 +467,28 @@ class SystemService {
         .trim();
   }
 
-  String? _extractNormalizedLabel(String line) {
-    final parts = line.split(':');
-    if (parts.length < 2) {
-      return null;
+  (String, String)? _extractNormalizedParts(String line) {
+    final colonIndex = line.indexOf(':');
+    if (colonIndex != -1) {
+      final label = line.substring(0, colonIndex).trim();
+      final value = line.substring(colonIndex + 1).trim();
+      if (label.isNotEmpty && value.isNotEmpty) {
+        return (_normalizeForMatch(label), _normalizeForMatch(value));
+      }
     }
-    return _normalizeForMatch(parts.first);
-  }
 
-  String? _extractNormalizedValue(String line) {
-    final separatorIndex = line.indexOf(':');
-    if (separatorIndex == -1) {
+    final match = RegExp(r'^(.*?)\s{2,}(.+)$').firstMatch(line);
+    if (match == null) {
       return null;
     }
-    return _normalizeForMatch(line.substring(separatorIndex + 1));
+
+    final label = match.group(1)?.trim();
+    final value = match.group(2)?.trim();
+    if (label == null || value == null || label.isEmpty || value.isEmpty) {
+      return null;
+    }
+
+    return (_normalizeForMatch(label), _normalizeForMatch(value));
   }
 
   bool? _parseEnabledValue(String normalizedValue) {

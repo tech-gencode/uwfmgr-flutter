@@ -52,6 +52,13 @@ class Strings {
             : "Command sent. Reboot required.";
 
     static String get dimensionUWF => isIt ? "Dimensione" : "Size";
+    static String get overlay => isIt ? "Overlay" : "Overlay";
+    static String get selectOption =>
+        isIt ? "Seleziona opzione" : "Select an option";
+    static String statusError(Object error) =>
+        isIt ? "Errore stato: $error" : "Status error: $error";
+    static String get online => isIt ? "ONLINE" : "ONLINE";
+    static String get offline => isIt ? "OFFLINE" : "OFFLINE";
 
   // --------------------------------------------------------------------------
   // NUOVE STRINGHE PER LA PULIZIA DEL SISTEMA

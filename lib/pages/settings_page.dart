@@ -187,7 +187,7 @@ class SafeDropdownInput extends ConsumerWidget {
               // Se selectedValue è null, cerchiamo di non far crashare il widget
               value: options.contains(selectedValue) ? selectedValue : null,
               isExpanded: true,
-              hint: Text("Seleziona opzione"), // Mostrato se il valore è null
+              hint: Text(Strings.selectOption), // Mostrato se il valore è null
               icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
               style: const TextStyle(color: Colors.black, fontSize: 16),
               borderRadius: BorderRadius.circular(8),

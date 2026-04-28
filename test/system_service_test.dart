@@ -4,7 +4,7 @@ import 'package:uwf_managerpro/services/system_service.dart';
 void main() {
   group('SystemService.parseUwfStatus', () {
     test('parses English current and next session states', () {
-      const output = '''
+      const output = r'''
 Unified Write Filter settings
 
 Current Session
@@ -49,7 +49,7 @@ HKLM\Software\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles
     });
 
     test('parses Italian output and detects RAM overlay', () {
-      const output = '''
+      const output = r'''
 Impostazioni Unified Write Filter
 
 Sessione corrente
@@ -81,7 +81,7 @@ Volume C:                   Protetto
     });
 
     test('parses Spanish localized output', () {
-      const output = '''
+      const output = r'''
 Utilidad de configuracion del Filtro de escritura unificado version 10.0.17763
 
 Configuracion de la sesion actual
@@ -127,6 +127,109 @@ Volumen 812f1528-33ff-48b8-ba59-35e5663af46b [C:]
       expect(
         status.exclusions,
         contains(r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation'),
+      );
+    });
+
+    test('parses real uwfmgr settings output and deduplicates exclusions', () {
+      const output = r'''
+Unified Write Filter Configuration Utility version 10.0.17763
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Current Session Settings
+
+
+FILTER SETTINGS
+    Filter state:    ON
+    Pending commit:  N/A
+    Shutdown pending:No
+
+SERVICING SETTINGS
+    Servicing State: OFF
+
+OVERLAY SETTINGS
+    Type:               RAM
+    Maximum size:       2048 MB
+    Warning Threshold:  512 MB
+    Critical Threshold: 1024 MB
+    Freespace Passthrough: OFF
+    Persistent: OFF
+    Reset Mode: N/A
+
+
+
+VOLUME SETTINGS
+Volume 812f1528-33ff-48b8-ba59-35e5663af46b [C:]
+    Volume state:     Un-protected
+    Volume ID:        812f1528-33ff-48b8-ba59-35e5663af46b
+
+    File Exclusions:
+Current Session Exclusions for Volume 812f1528-33ff-48b8-ba59-35e5663af46b [C:]
+    C:\Windows\System32\winevt\Logs
+    C:\Windows\Temp
+    C:\ProgramData\Microsoft\WLSC
+
+
+
+REGISTRY EXCLUSIONS
+    HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation
+    HKLM\SYSTEM\CurrentControlSet\Services\W32Time
+    HKLM\Software\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles
+
+Next Session Settings
+
+
+FILTER SETTINGS
+    Filter state:    ON
+    Pending commit:  N/A
+
+SERVICING SETTINGS
+    Servicing State: OFF
+
+OVERLAY SETTINGS
+    Type:               RAM
+    Maximum size:       2048 MB
+    Warning Threshold:  512 MB
+    Critical Threshold: 1024 MB
+    Freespace Passthrough: OFF
+    Persistent: OFF
+    Reset Mode: N/A
+
+
+
+VOLUME SETTINGS
+Volume 812f1528-33ff-48b8-ba59-35e5663af46b [C:]
+    Volume state:     Un-protected
+    Volume ID:        812f1528-33ff-48b8-ba59-35e5663af46b
+
+    File Exclusions:
+Next Session Exclusions for Volume 812f1528-33ff-48b8-ba59-35e5663af46b [C:]
+    C:\Windows\System32\winevt\Logs
+    C:\Windows\Temp
+    C:\ProgramData\Microsoft\WLSC
+
+
+
+REGISTRY EXCLUSIONS
+    HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation
+    HKLM\SYSTEM\CurrentControlSet\Services\W32Time
+    HKLM\Software\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles
+''';
+
+      final status = SystemService().parseUwfStatus(output);
+
+      expect(status.isEnabled, isTrue);
+      expect(status.isNextSessionEnabled, isTrue);
+      expect(status.isCurrentSessionProtected, isFalse);
+      expect(status.isNextSessionProtected, isFalse);
+      expect(status.overlayMode, 'RAM');
+      expect(status.overlaySize, '2048 MB');
+      expect(
+        status.exclusions.where((e) => e == r'C:\Windows\Temp').length,
+        1,
+      );
+      expect(
+        status.exclusions,
+        contains(r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time'),
       );
     });
   });

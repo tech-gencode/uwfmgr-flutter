@@ -95,7 +95,7 @@ class NetworkPage extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            device.isOnline ? "ONLINE" : "OFFLINE",
+                            device.isOnline ? Strings.online : Strings.offline,
                             style: TextStyle(
                               fontSize: 12,
                               color:

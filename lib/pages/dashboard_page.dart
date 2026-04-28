@@ -31,7 +31,7 @@ class DashboardPage extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error:
               (err, stack) => Text(
-                "Status Error: $err",
+                Strings.statusError(err),
                 style: const TextStyle(color: Colors.red),
               ),
           data: (status) {
@@ -60,7 +60,7 @@ class DashboardPage extends ConsumerWidget {
                     child: Column(
                       children: [
                         _buildDetailCard(
-                          "Overlay",
+                          Strings.overlay,
                           status.overlayMode,
                           Icons.layers,
                         ),
