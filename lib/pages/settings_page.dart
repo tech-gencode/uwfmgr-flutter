@@ -141,40 +141,31 @@ Widget buildSafeInput(
     children: [
       Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
-
-      GestureDetector(
-        behavior: HitTestBehavior.translucent,
+      TextField(
+        controller: controller,
+        // Ora permettiamo il focus reale per ricevere input dalla tastiera fisica
+        readOnly: false, 
+        showCursor: true,
+        // Questo impedisce l'apertura della tastiera di sistema su Android/iOS/Linux
+        keyboardType: TextInputType.none, 
+        
         onTap: () {
-          // Attiva la TASTIERA VIRTUALE
+          // Attiva la tua TASTIERA VIRTUALE personalizzata
           ref.read(activeTextControllerProvider.notifier).state = controller;
           ref.read(keyboardVisibleProvider.notifier).state = true;
         },
-
-        child: AbsorbPointer(
-          child: TextField(
-            controller: controller,
-
-            // Focus completamente DISABILITATO → zero crash su Linux
-            focusNode: AlwaysDisabledFocusNode(),
-
-            readOnly: true,
-            showCursor: true,
-            keyboardType: TextInputType.none,
-
-            decoration: InputDecoration(
-              prefixIcon: Icon(icon, color: Colors.grey),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-            ),
+        
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.grey),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
+          filled: true,
+          fillColor: Colors.grey[50],
         ),
       ),
     ],
   );
-  
 }
 
 class SafeDropdownInput extends ConsumerWidget {
