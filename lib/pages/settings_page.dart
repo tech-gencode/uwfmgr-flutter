@@ -14,14 +14,38 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
+  static const _deviceOptions = [
+    "NC-TOUCH CONSOLE",
+    "7-INCH PC",
+    "7-INCH CONSOLE",
+    "12-INCH PC",
+  ];
+
   final TextEditingController _hostController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadComputerIdentity);
+  }
 
   @override
   void dispose() {
     _hostController.dispose();
-    _descController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadComputerIdentity() async {
+    final (hostName, description) = await ref
+        .read(systemServiceProvider)
+        .getComputerIdentity();
+
+    if (!mounted) return;
+
+    _hostController.text = hostName;
+    if (description != null && _deviceOptions.contains(description)) {
+      ref.read(deviceTypeProvider.notifier).state = description;
+    }
   }
 
   @override
@@ -58,12 +82,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 label: Strings.pcDesc,
                 icon: Icons.description,
                 provider: deviceTypeProvider,
-                options: const [
-                  "NC-TOUCH CONSOLE",
-                  "7-INCH PC",
-                  "7-INCH CONSOLE",
-                  "12-INCH PC",
-                ],
+                options: _deviceOptions,
               ),
 
                 const SizedBox(height: 30),
@@ -77,11 +96,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      ref
-                          .read(systemServiceProvider)
-                          .setHostname(_hostController.text);
+                    onPressed: () async {
+                      final selectedDescription = ref.read(deviceTypeProvider);
 
+                      await ref
+                          .read(systemServiceProvider)
+                          .setComputerIdentity(
+                            _hostController.text,
+                            selectedDescription,
+                          );
+
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(
                         context,
                       ).showSnackBar(SnackBar(content: Text(Strings.cmdSent)));

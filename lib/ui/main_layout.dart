@@ -112,8 +112,13 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                           ),
                         ),
                         onPressed: () {
+                          final nextVisible = !isKeyboardVisible;
                           ref.read(keyboardVisibleProvider.notifier).state =
-                              !isKeyboardVisible;
+                              nextVisible;
+                          if (!nextVisible) {
+                            ref.read(activeTextControllerProvider.notifier).state =
+                                null;
+                          }
                         },
                         icon: const Icon(Icons.keyboard),
                         label: Text(Strings.keyboard),

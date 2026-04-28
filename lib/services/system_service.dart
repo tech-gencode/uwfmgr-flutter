@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/uwf_status.dart';
@@ -205,6 +206,25 @@ const Set<String> _unprotectedTokens = {
 };
 
 class SystemService {
+  static const List<String> defaultNetworkIps = [
+    '192.168.1.199',
+    '192.168.1.198',
+    '192.168.1.197',
+    '192.168.1.196',
+    '192.168.1.195',
+    '192.168.1.194',
+    '192.168.1.193',
+    '192.168.1.192',
+    '192.168.1.191',
+    '192.168.1.190',
+    '192.168.1.189',
+    '192.168.1.188',
+    '192.168.1.187',
+    '192.168.1.186',
+    '192.168.1.185',
+    '192.168.1.184',
+  ];
+
   Future<String> runCommand(String executable, List<String> args) async {
     try {
       final result = await Process.run(executable, args, runInShell: true);
@@ -590,10 +610,112 @@ class SystemService {
     await Process.run('shutdown', ['/r', '/t', '0']);
   }
 
-  Future<void> setHostname(String newName) async {
+  Future<(String hostName, String? description)> getComputerIdentity() async {
+    final hostName = Platform.localHostname;
+    final description = await _getComputerDescription();
+    return (hostName, description);
+  }
+
+  Future<void> setComputerIdentity(String newName, String? description) async {
+    final trimmedName = newName.trim();
+    final trimmedDescription = description?.trim();
+
+    if (trimmedName.isEmpty && (trimmedDescription == null || trimmedDescription.isEmpty)) {
+      return;
+    }
+
+    final commands = <String>[];
+
+    if (trimmedName.isNotEmpty) {
+      commands.add(
+        "Rename-Computer -NewName '${_escapePowerShell(trimmedName)}' -Force",
+      );
+    }
+
+    if (trimmedDescription != null && trimmedDescription.isNotEmpty) {
+      commands.add(
+        "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters' -Name 'srvcomment' -Value '${_escapePowerShell(trimmedDescription)}'",
+      );
+    }
+
     await runCommand('powershell', [
       '-Command',
-      'Rename-Computer -NewName "$newName" -Force',
+      commands.join('; '),
     ]);
+  }
+
+  String _escapePowerShell(String value) {
+    return value.replaceAll("'", "''");
+  }
+
+  Future<String?> _getComputerDescription() async {
+    try {
+      final result = await Process.run(
+        'powershell',
+        [
+          '-Command',
+          r"(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name 'srvcomment' -ErrorAction SilentlyContinue).srvcomment",
+        ],
+        stdoutEncoding: SystemEncoding(),
+        stderrEncoding: SystemEncoding(),
+      );
+
+      final output = _sanitizeCommandOutput(result.stdout.toString()).trim();
+      if (output.isEmpty) {
+        return null;
+      }
+      return output;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<String>> loadNetworkIps() async {
+    final configFile = await _ensureNetworkConfigFile();
+    final content = await configFile.readAsString();
+
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is! Map<String, dynamic>) {
+        return [...defaultNetworkIps];
+      }
+
+      final devices = decoded['devices'];
+      if (devices is! List) {
+        return [...defaultNetworkIps];
+      }
+
+      final ips = devices
+          .whereType<Map>()
+          .map((device) => device['ip'])
+          .whereType<String>()
+          .map((ip) => ip.trim())
+          .where((ip) => ip.isNotEmpty)
+          .toSet()
+          .toList();
+
+      return ips.isEmpty ? [...defaultNetworkIps] : ips;
+    } catch (_) {
+      return [...defaultNetworkIps];
+    }
+  }
+
+  Future<File> _ensureNetworkConfigFile() async {
+    final exeDirectory = File(Platform.resolvedExecutable).parent;
+    final configFile = File(
+      '${exeDirectory.path}${Platform.pathSeparator}network_config.json',
+    );
+
+    if (!await configFile.exists()) {
+      await configFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'version': 1,
+          'devices': defaultNetworkIps.map((ip) => {'ip': ip}).toList(),
+        }),
+        flush: true,
+      );
+    }
+
+    return configFile;
   }
 }

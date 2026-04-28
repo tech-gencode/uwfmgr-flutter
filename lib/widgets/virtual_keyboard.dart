@@ -97,6 +97,12 @@ class VirtualKeyboardContent extends ConsumerWidget {
 
     void onKeyPress(String key) {
       try {
+        if (key == 'Enter' || key == 'Close') {
+          ref.read(keyboardVisibleProvider.notifier).state = false;
+          ref.read(activeTextControllerProvider.notifier).state = null;
+          return;
+        }
+
         final controller = ref.read(activeTextControllerProvider);
 
         if (controller == null) return;
@@ -116,18 +122,10 @@ class VirtualKeyboardContent extends ConsumerWidget {
                 text.substring(0, cursorPos - 1) + text.substring(cursorPos);
             newCursorPos = cursorPos - 1;
           }
-        } else if (key == 'Enter') {
-          ref.read(keyboardVisibleProvider.notifier).state = false;
-          ref.read(activeTextControllerProvider.notifier).state = null;
-          return;
         } else if (key == 'Space') {
           newText =
               "${text.substring(0, cursorPos)} ${text.substring(cursorPos)}";
           newCursorPos = cursorPos + 1;
-        } else if (key == 'Close') {
-          ref.read(keyboardVisibleProvider.notifier).state = false;
-          ref.read(activeTextControllerProvider.notifier).state = null;   
-          return;
         } else {
           newText =
               text.substring(0, cursorPos) + key + text.substring(cursorPos);

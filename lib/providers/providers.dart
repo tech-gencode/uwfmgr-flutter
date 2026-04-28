@@ -73,14 +73,9 @@ class NetworkNotifier extends StateNotifier<List<PingStatus>> {
   Timer? _timer;
 
   NetworkNotifier(this._service) : super([]) {
-    // Generazione IP DECRESCENTE
-    // Range: 199 -> 184 (16 indirizzi)
-    final ips = List.generate(16, (index) => '192.168.1.${199 - index}');
-    state = ips.map((ip) => PingStatus(ip: ip)).toList();
-
-    pingAll();
+    _loadAndPing();
     // Aggiornamento ogni 5 secondi
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) => pingAll());
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _loadAndPing());
   }
 
   @override
@@ -90,7 +85,9 @@ class NetworkNotifier extends StateNotifier<List<PingStatus>> {
   }
 
   Future<void> pingAll() async {
-    if (!mounted) return;
+    await _loadConfiguredDevices();
+    if (!mounted || state.isEmpty) return;
+
     final futures = state.map((item) async {
       final isOnline = await _service.pingAddress(item.ip);
       return PingStatus(ip: item.ip, isOnline: isOnline);
@@ -98,6 +95,23 @@ class NetworkNotifier extends StateNotifier<List<PingStatus>> {
 
     final results = await Future.wait(futures);
     if (mounted) state = results;
+  }
+
+  Future<void> _loadAndPing() async {
+    await pingAll();
+  }
+
+  Future<void> _loadConfiguredDevices() async {
+    final ips = await _service.loadNetworkIps();
+    final currentStatusByIp = {for (final item in state) item.ip: item.isOnline};
+    final nextState = ips
+        .map(
+          (ip) => PingStatus(ip: ip, isOnline: currentStatusByIp[ip] ?? false),
+        )
+        .toList();
+
+    if (!mounted) return;
+    state = nextState;
   }
 }
 
