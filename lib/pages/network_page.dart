@@ -34,7 +34,18 @@ class NetworkPage extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
         Expanded(
-          child: Scrollbar(
+          child: devices.isEmpty
+          ? Center(
+              child: Text(
+                Strings.emptyList, // La nuova stringa creata sopra
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            )
+          : Scrollbar(
             controller: scrollController,
             thumbVisibility: true,
             child: GridView.builder(

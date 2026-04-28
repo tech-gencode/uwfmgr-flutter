@@ -671,34 +671,29 @@ class SystemService {
   }
 
   Future<List<String>> loadNetworkIps() async {
-    final configFile = await _ensureNetworkConfigFile();
-    final content = await configFile.readAsString();
-
     try {
+      final configFile = await _ensureNetworkConfigFile();
+      final content = await configFile.readAsString();
       final decoded = jsonDecode(content);
-      if (decoded is! Map<String, dynamic>) {
-        return [...defaultNetworkIps];
-      }
+
+      if (decoded is! Map<String, dynamic>) return [];
 
       final devices = decoded['devices'];
-      if (devices is! List) {
-        return [...defaultNetworkIps];
-      }
+      if (devices is! List) return [];
 
-      final ips = devices
+      return devices
           .whereType<Map>()
           .map((device) => device['ip'])
           .whereType<String>()
           .map((ip) => ip.trim())
           .where((ip) => ip.isNotEmpty)
-          .toSet()
-          .toList();
-
-      return ips.isEmpty ? [...defaultNetworkIps] : ips;
-    } catch (_) {
-      return [...defaultNetworkIps];
-    }
+          .toList(); 
+        // Nota: rimosso il controllo .isEmpty che rimandava ai default!
+  } catch (_) {
+    // Se il file è corrotto o non leggibile, restituisce lista vuota
+    return []; 
   }
+}
 
   Future<File> _ensureNetworkConfigFile() async {
     final exeDirectory = File(Platform.resolvedExecutable).parent;

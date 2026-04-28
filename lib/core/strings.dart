@@ -39,6 +39,8 @@ class Strings {
 
     static String get netMonitor =>
         isIt ? "Monitoraggio Dispositivi" : "Device Monitoring";
+    static String get emptyList => 
+        isIt ? "Lista IP vuota" : "Empty IP list";        
     static String get sysConfig =>
         isIt ? "Configurazione Sistema" : "System Configuration";
     static String get hostName =>
