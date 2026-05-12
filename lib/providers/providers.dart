@@ -139,6 +139,106 @@ final isSystemLockedProvider = Provider<bool>((ref) {
 // IL NUOVO CONTROLLER: Gestisce la logica di pulizia in sicurezza
 final cleanupControllerProvider = Provider((ref) => CleanupController(ref));
 
+// ---------------------------------------------------------------------------
+// SERVICING / WINDOWS UPDATE STATE
+// ---------------------------------------------------------------------------
+
+/// StartType originali (per ripristino) catturati prima del servicing.
+final windowsUpdateOriginalStartTypesProvider =
+    StateProvider<Map<String, String>?>((ref) => null);
+
+/// true se il flusso di servicing è in corso.
+final isServicingProvider = StateProvider<bool>((ref) => false);
+
+/// Progresso (0..1) per UI.
+final servicingProgressProvider = StateProvider<double>((ref) => 0.0);
+
+/// Log testuale per UI.
+final servicingLogProvider = StateProvider<String>((ref) => '');
+
+final servicingControllerProvider = Provider((ref) => ServicingController(ref));
+
+class ServicingController {
+  final Ref ref;
+
+  ServicingController(this.ref);
+
+  SystemService get _service => ref.read(systemServiceProvider);
+
+  void _appendLog(String line) {
+    final current = ref.read(servicingLogProvider);
+    final ts = DateTime.now().toIso8601String().split('.').first;
+    ref.read(servicingLogProvider.notifier).state =
+        (current.isEmpty ? '' : '$current\n') + '[$ts] $line';
+  }
+
+  Future<void> captureStateIfNeeded() async {
+    final existing = ref.read(windowsUpdateOriginalStartTypesProvider);
+    if (existing != null && existing.isNotEmpty) {
+      _appendLog('Stato già presente (skip).');
+      return;
+    }
+    _appendLog('Salvataggio stato servizi Windows Update...');
+    final captured = await _service.captureWindowsUpdateServiceStartTypes();
+    ref.read(windowsUpdateOriginalStartTypesProvider.notifier).state = captured;
+    _appendLog('Stato salvato: ${captured.isEmpty ? "vuoto" : captured.keys.join(", ")}');
+  }
+
+  Future<void> enableWindowsUpdate() async {
+    _appendLog('Riattivo servizi Windows Update...');
+    await _service.enableWindowsUpdateServices();
+    _appendLog('Servizi riattivati (best-effort).');
+  }
+
+  Future<void> startUpdates() async {
+    _appendLog('Avvio workflow aggiornamenti (scan/download/install)...');
+    await _service.startWindowsUpdateWorkflow();
+    _appendLog('Comandi aggiornamento inviati.');
+  }
+
+  Future<void> openWindowsUpdate() async {
+    _appendLog('Apro Windows Update (UI)...');
+    await _service.openWindowsUpdateSettings();
+  }
+
+  Future<void> restoreWindowsUpdate() async {
+    final captured = ref.read(windowsUpdateOriginalStartTypesProvider) ?? {};
+    if (captured.isEmpty) {
+      _appendLog('Nessuno stato salvato: ripristino non eseguito.');
+      return;
+    }
+    _appendLog('Ripristino configurazione servizi Windows Update...');
+    await _service.restoreWindowsUpdateServices(captured);
+    _appendLog('Ripristino completato (best-effort).');
+  }
+
+  /// Flusso guidato: salva stato → abilita → avvia aggiornamenti → apre UI.
+  /// Nota: il ripristino è manuale (bottone dedicato), perché gli update possono durare/rebootare.
+  Future<void> runGuidedFlow() async {
+    ref.read(isServicingProvider.notifier).state = true;
+    ref.read(servicingProgressProvider.notifier).state = 0.0;
+    try {
+      await captureStateIfNeeded();
+      ref.read(servicingProgressProvider.notifier).state = 0.25;
+
+      await enableWindowsUpdate();
+      ref.read(servicingProgressProvider.notifier).state = 0.55;
+
+      await startUpdates();
+      ref.read(servicingProgressProvider.notifier).state = 0.80;
+
+      await openWindowsUpdate();
+      ref.read(servicingProgressProvider.notifier).state = 1.0;
+      _appendLog('Flusso guidato completato. Quando finito, usa "Ripristina configurazione".');
+    } catch (e) {
+      _appendLog('Errore servicing: $e');
+    } finally {
+      await Future.delayed(const Duration(milliseconds: 300));
+      ref.read(isServicingProvider.notifier).state = false;
+    }
+  }
+}
+
 class CleanupController {
   final Ref ref; // Usiamo Ref di Riverpod, non WidgetRef!
 

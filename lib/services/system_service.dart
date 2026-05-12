@@ -23,7 +23,7 @@ final Set<String> _currentSessionHeaders = {
   'CURRENT SESSION',
   'CURRENT SESSION SETTINGS',
   // IT
-  'SESSIONE CORRENTE',
+  'IMPOSTAZIONI SESSIONE CORRENTE',
   // ES
   'CONFIGURACION DE LA SESION ACTUAL',
   // FR
@@ -39,7 +39,7 @@ final Set<String> _nextSessionHeaders = {
   'NEXT SESSION',
   'NEXT SESSION SETTINGS',
   // IT
-  'SESSIONE SUCCESSIVA',
+  'IMPOSTAZIONE SESSIONE SUCCESSIVA',
   // ES
   'CONFIGURACION DE LA SESION SIGUIENTE',
   // FR
@@ -55,7 +55,7 @@ final Set<String> _filterConfigHeaders = {
   'FILTER CONFIGURATION',
   'FILTER SETTINGS',
   // IT
-  'CONFIGURAZIONE FILTRO',
+  'IMPOSTAZIONI FILTRO',
   // ES
   'CONFIGURACION DE FILTRO',
   // FR
@@ -71,7 +71,7 @@ final Set<String> _overlayConfigHeaders = {
   'OVERLAY CONFIGURATION',
   'OVERLAY SETTINGS',
   // IT
-  'CONFIGURAZIONE OVERLAY',
+  'IMPOSTAZIONI OVERLAY',
   // ES
   'CONFIGURACION DE SUPERPOSICION',
   // FR
@@ -87,7 +87,7 @@ final Set<String> _volumeConfigHeaders = {
   'VOLUME CONFIGURATION',
   'VOLUME SETTINGS',
   // IT
-  'CONFIGURAZIONE VOLUME',
+  'IMPOSTAZIONI VOLUME',
   // ES
   'CONFIGURACION DE VOLUMEN',
   // FR
@@ -117,7 +117,7 @@ final Set<String> _volumeStateLabels = {
   // EN
   'VOLUME STATE',
   // IT
-  'STATO DEL VOLUME',
+  'STATO VOLUME',
   // ES
   'ESTADO DEL VOLUMEN',
   // FR
@@ -133,7 +133,7 @@ final Set<String> _overlayTypeLabels = {
   'OVERLAY TYPE',
   'TYPE',
   // IT
-  'TIPO OVERLAY',
+  'IMPOSTAZIONI OVERLAY',
   'TIPO',
   // ES
   'TIPO',
@@ -153,7 +153,7 @@ final Set<String> _overlaySizeLabels = {
   'MAXIMUM SIZE',
   // IT
   'DIMENSIONE OVERLAY',
-  'DIMENSIONE MASSIMA',
+  'DIMENSIONI MASSIME',
   'DIMENSIONE',
   // ES
   'TAMANO MAXIMO',
@@ -583,10 +583,21 @@ class SystemService {
   Future<void> _addExclusions() async {
     // --- ESCLUSIONI FILE PER PERSISTENZA LOG ---
     final fileExclusions = [
+      r'C:\Windows\temp',
+      r'C:\ProgramData\SoftwareDistribution',
+      r'C:\ProgramData\Microsoft\Network\Downloader',
+      r'C:\Windows\dot2svc\Policies',
+      r'C:\ProgramData\Microsoft\Crypto',
+      r'C:\Windows\ccmcache',
+      r'C:\Windows\CCM\Logs',
+    ];
+    /*
+    final fileExclusions = [
       r'C:\Windows\System32\winevt\Logs',     // Fondamentale per log eventi Windows
       r'C:\Windows\Temp',                     // Temp di sistema
       r'C:\ProgramData\Microsoft\WLSC'        // per la licenza
     ];
+    */
 
     for (var path in fileExclusions) {
       await runCommand('uwfmgr', ['file', 'add-exclusion', path]);
@@ -595,10 +606,47 @@ class SystemService {
     // --- ESCLUSIONI REGISTRO PER ORA SOLARE/LEGALE ---
     // Queste chiavi permettono a Windows di salvare il cambio orario e ethernet anche sotto UWF
     final regExclusions = [
+      // SQM & CEIP (Telemetry)
+      r'HKLM\Software\Policies\Microsoft\SQMClient\Windows\CEIPEnable',
+      r'HKLM\Software\Microsoft\SQMClient\Windows\CEIPEnable',
+      r'HKLM\Software\Microsoft\SQMClient\UploadDisableFlag',
+
+      // BITS & WIRED
+      r'HKLM\Software\Microsoft\Windows\CurrentVersion\BITS\StateIndex',
+      r'HKLM\SOFTWARE\Policies\Microsoft\Windows\WiredL2\GP_Policy',
+      r'HKLM\SOFTWARE\Microsoft\dot3svc',
+      r'HKLM\SYSTEM\CurrentControlSet\services\dot3svc',
+
+      // TIME & SYSTEM
+      r'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones',
       r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation',
-      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time',
-      r'HKLM\Software\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles',
+      r'HKLM\SOFTWARE\Microsoft\SystemCertificates\SMS\Certificates',
+      r'HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers',
     ];
+    /*
+    final regExclusions = [
+      // ORARIO
+      r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation',
+      r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation\Dynamic DST',
+      r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation\RealTimeIsUniversal',
+      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time',
+      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Config',
+      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters',
+      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders',
+
+      // RETE
+      r'HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters',
+      r'HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces',
+
+      // DHCP
+      r'HKLM\SYSTEM\CurrentControlSet\Services\Dhcp',
+
+      // STABILITÀ RETE
+      r'HKLM\SYSTEM\CurrentControlSet\Services\NlaSvc',
+
+      // PROFILI
+      r'HKLM\Software\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles',
+    ];*/
 
     for (var key in regExclusions) {
       await runCommand('uwfmgr', ['registry', 'add-exclusion', key]);
@@ -712,5 +760,102 @@ class SystemService {
     }
 
     return configFile;
+  }
+
+  // --------------------------------------------------------------------------
+  // SERVICING / WINDOWS UPDATE
+  // --------------------------------------------------------------------------
+
+  static const List<String> _windowsUpdateServices = [
+    'wuauserv', // Windows Update
+    'bits', // Background Intelligent Transfer Service
+    'dosvc', // Delivery Optimization
+    'usosvc', // Update Orchestrator Service
+  ];
+
+  /// Ritorna una mappa { serviceName: startType } (es: Manual/Automatic/Disabled).
+  Future<Map<String, String>> captureWindowsUpdateServiceStartTypes() async {
+    final script = r'''
+$ErrorActionPreference = 'SilentlyContinue'
+$svcs = @('wuauserv','bits','dosvc','usosvc')
+$state = @{}
+foreach ($s in $svcs) {
+  $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
+  if ($null -ne $svc) {
+    $state[$s] = "$($svc.StartType)"
+  }
+}
+$state | ConvertTo-Json -Compress
+''';
+
+    final json = await runCommand('powershell', ['-Command', script]);
+    if (json.trim().isEmpty) return {};
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is Map) {
+        return decoded.map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  /// Imposta i servizi Windows Update in stato "operativo" (tipicamente Manual) e li avvia.
+  Future<void> enableWindowsUpdateServices() async {
+    final script = r'''
+$ErrorActionPreference = 'SilentlyContinue'
+$svcs = @('wuauserv','bits','dosvc','usosvc')
+foreach ($s in $svcs) {
+  try { Set-Service -Name $s -StartupType Manual } catch {}
+  try { Start-Service -Name $s } catch {}
+}
+''';
+    await runCommand('powershell', ['-Command', script]);
+  }
+
+  /// Ripristina gli start-type salvati; se un servizio viene ripristinato su Disabled lo ferma.
+  Future<void> restoreWindowsUpdateServices(Map<String, String> startTypes) async {
+    if (startTypes.isEmpty) return;
+
+    final entries = startTypes.entries
+        .where((e) => _windowsUpdateServices.contains(e.key))
+        .map((e) {
+          final name = _escapePowerShell(e.key);
+          final typeRaw = e.value.toLowerCase();
+          final startupType =
+              typeRaw.contains('auto') ? 'Automatic' : (typeRaw.contains('dis') ? 'Disabled' : 'Manual');
+          return "'$name'='$startupType'";
+        })
+        .join('; ');
+
+    final script = '''
+\$ErrorActionPreference = 'SilentlyContinue'
+\$state = @{ $entries }
+foreach (\$k in \$state.Keys) {
+  \$t = \$state[\$k]
+  try { Set-Service -Name \$k -StartupType \$t } catch {}
+  if (\$t -eq 'Disabled') {
+    try { Stop-Service -Name \$k -Force } catch {}
+  }
+}
+''';
+
+    await runCommand('powershell', ['-Command', script]);
+  }
+
+  /// Avvia (best-effort) scan/download/install tramite UsoClient.
+  /// Nota: non blocca fino a fine aggiornamenti; innesca solo il processo.
+  Future<void> startWindowsUpdateWorkflow() async {
+    // UsoClient è il modo più “nativo” su Windows 10/11 per orchestrare WU.
+    // Alcuni comandi possono non produrre output: è normale.
+    await runCommand('cmd', ['/c', 'UsoClient', 'StartScan']);
+    await Future.delayed(const Duration(seconds: 2));
+    await runCommand('cmd', ['/c', 'UsoClient', 'StartDownload']);
+    await Future.delayed(const Duration(seconds: 2));
+    await runCommand('cmd', ['/c', 'UsoClient', 'StartInstall']);
+  }
+
+  /// Apre la UI di Windows Update (Settings).
+  Future<void> openWindowsUpdateSettings() async {
+    await runCommand('cmd', ['/c', 'start', '', 'ms-settings:windowsupdate']);
   }
 }

@@ -108,4 +108,41 @@ class Strings {
 
     static String get btnRebootNow =>
         isIt ? "RIAVVIA ORA" : "REBOOT NOW";        
+
+  // --------------------------------------------------------------------------
+  // SERVICING / WINDOWS UPDATE
+  // --------------------------------------------------------------------------
+    static String get servicing => isIt ? "Servicing" : "Servicing";
+
+    static String get servicingTitle =>
+        isIt ? "Aggiornamento Sistema Operativo" : "Operating System Update";
+
+    static String get servicingSubtitle =>
+        isIt
+            ? "Riattiva temporaneamente Windows Update, avvia la ricerca/installazione aggiornamenti e poi ripristina la configurazione bloccata."
+            : "Temporarily re-enable Windows Update, start scanning/installing updates, then restore the locked configuration.";
+
+    static String get wuCaptureState =>
+        isIt ? "Salva stato attuale" : "Capture current state";
+
+    static String get wuEnable =>
+        isIt ? "Riattiva Windows Update" : "Enable Windows Update";
+
+    static String get wuStart =>
+        isIt ? "Avvia aggiornamenti" : "Start updates";
+
+    static String get wuOpenSettings =>
+        isIt ? "Apri Windows Update" : "Open Windows Update";
+
+    static String get wuRestore =>
+        isIt ? "Ripristina configurazione" : "Restore configuration";
+
+    static String get wuRunFull =>
+        isIt ? "Esegui flusso guidato" : "Run guided flow";
+
+    static String get wuLog =>
+        isIt ? "Log operazioni" : "Operation log";
+
+    static String get wuAdminRequired =>
+        isIt ? "Richiede privilegi Admin per Windows Update" : "Admin privileges required for Windows Update";
 }

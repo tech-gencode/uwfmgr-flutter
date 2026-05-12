@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants.dart';
 import '../core/strings.dart';
 import '../pages/maintenance_page.dart';
+import '../pages/servicing_page.dart';
 import '../providers/providers.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/network_page.dart';
@@ -50,6 +51,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       const NetworkPage(),
       const SettingsPage(),
       const MaintenancePage(),
+      const ServicingPage(),
     ];
 
     return Scaffold(
@@ -95,6 +97,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                       Icons
                           .cleaning_services_rounded, // Icona del cestino/pulizia
                       Strings.maintenance, // Stringa localizzata
+                    ),
+                    _buildNavItem(
+                      4,
+                      Icons.system_update_rounded,
+                      Strings.servicing,
                     ),
                     const Spacer(),
                     Padding(
@@ -184,11 +191,15 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
               color: isSelected ? kAccentColor : Colors.grey[700],
             ),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.black : Colors.grey[700],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? Colors.black : Colors.grey[700],
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ),
           ],
