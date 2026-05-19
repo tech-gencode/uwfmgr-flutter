@@ -24,10 +24,12 @@ final Set<String> _currentSessionHeaders = {
   'CURRENT SESSION SETTINGS',
   // IT
   'IMPOSTAZIONI SESSIONE CORRENTE',
+  'SESSIONE CORRENTE',
   // ES
   'CONFIGURACION DE LA SESION ACTUAL',
-  // FR
+  // FR (older + Windows 10.0.26100+)
   'CONFIGURATION DE LA SESSION ACTUELLE',
+  'PARAMETRES DE LA SESSION EN COURS',
   // DE
   'KONFIGURATION DER AKTUELLEN SITZUNG',
   // RU
@@ -38,12 +40,15 @@ final Set<String> _nextSessionHeaders = {
   // EN
   'NEXT SESSION',
   'NEXT SESSION SETTINGS',
-  // IT
+  // IT (Windows 10.0.26100+ uses plural "Impostazioni")
+  'IMPOSTAZIONI SESSIONE SUCCESSIVA',
   'IMPOSTAZIONE SESSIONE SUCCESSIVA',
+  'SESSIONE SUCCESSIVA',
   // ES
   'CONFIGURACION DE LA SESION SIGUIENTE',
-  // FR
+  // FR (older + Windows 10.0.26100+)
   'CONFIGURATION DE LA SESSION SUIVANTE',
+  'PARAMETRES DE LA SESSION SUIVANTE',
   // DE
   'KONFIGURATION DER NACHSTEN SITZUNG',
   // RU
@@ -56,10 +61,12 @@ final Set<String> _filterConfigHeaders = {
   'FILTER SETTINGS',
   // IT
   'IMPOSTAZIONI FILTRO',
+  'CONFIGURAZIONE FILTRO',
   // ES
   'CONFIGURACION DE FILTRO',
-  // FR
+  // FR (older + Windows 10.0.26100+)
   'CONFIGURATION DU FILTRE',
+  'PARAMETRES DE FILTRE',
   // DE
   'FILTERKONFIGURATION',
   // RU
@@ -72,10 +79,12 @@ final Set<String> _overlayConfigHeaders = {
   'OVERLAY SETTINGS',
   // IT
   'IMPOSTAZIONI OVERLAY',
+  'CONFIGURAZIONE OVERLAY',
   // ES
   'CONFIGURACION DE SUPERPOSICION',
-  // FR
+  // FR (older + Windows 10.0.26100+)
   'CONFIGURATION DE LA SUPERPOSITION',
+  'PARAMETRES DE SUPERPOSITION',
   // DE
   'OVERLAYKONFIGURATION',
   // RU
@@ -88,10 +97,12 @@ final Set<String> _volumeConfigHeaders = {
   'VOLUME SETTINGS',
   // IT
   'IMPOSTAZIONI VOLUME',
+  'CONFIGURAZIONE VOLUME',
   // ES
   'CONFIGURACION DE VOLUMEN',
-  // FR
+  // FR (older + Windows 10.0.26100+)
   'CONFIGURATION DU VOLUME',
+  'PARAMETRES DE VOLUME',
   // DE
   'VOLUMENKONFIGURATION',
   // RU
@@ -134,11 +145,13 @@ final Set<String> _overlayTypeLabels = {
   'TYPE',
   // IT
   'IMPOSTAZIONI OVERLAY',
+  'TIPO OVERLAY',
   'TIPO',
   // ES
   'TIPO',
-  // FR
+  // FR (uwfmgr may shorten to "Type de : RAM")
   'TYPE DE SUPERPOSITION',
+  'TYPE DE',
   'TYPE',
   // DE
   'OVERLAYTYP',
@@ -153,6 +166,7 @@ final Set<String> _overlaySizeLabels = {
   'MAXIMUM SIZE',
   // IT
   'DIMENSIONE OVERLAY',
+  'DIMENSIONE MASSIMA',
   'DIMENSIONI MASSIME',
   'DIMENSIONE',
   // ES
@@ -171,7 +185,9 @@ const Set<String> _enabledTokens = {
   'ACTIVE',
   'ACTIVATED',
   'ABILITATO',
+  'ABILITATA',
   'ATTIVO',
+  'ATTIVATA',
   'ACTIVADO',
   'ACTIF',
   'AKTIVIERT',
@@ -182,8 +198,11 @@ const Set<String> _disabledTokens = {
   'DISABLED',
   'INACTIVE',
   'DISABILITATO',
+  'DISABILITATA',
   'DISATTIVATO',
+  'DISATTIVATA',
   'DESACTIVADO',
+  'DESACTIVE',
   'INACTIF',
   'DEAKTIVIERT',
 };
@@ -543,13 +562,18 @@ class SystemService {
 
   String? _parseOverlaySize(String rawValue) {
     final match = RegExp(
-      r'(\d+(?:[.,]\d+)?)\s*(MB|GB)',
+      r'(\d+(?:[.,]\d+)?)\s*(MB|GB|MO|GO|ME|GI)',
       caseSensitive: false,
     ).firstMatch(rawValue);
     if (match == null) {
       return null;
     }
-    return "${match.group(1)} ${match.group(2)!.toUpperCase()}";
+    final unit = switch (match.group(2)!.toUpperCase()) {
+      'MO' || 'ME' => 'MB',
+      'GO' || 'GI' => 'GB',
+      _ => match.group(2)!.toUpperCase(),
+    };
+    return '${match.group(1)} $unit';
   }
 
   bool _containsAnyToken(String text, Set<String> tokens) {
