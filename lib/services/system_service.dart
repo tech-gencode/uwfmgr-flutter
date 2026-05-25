@@ -608,21 +608,9 @@ class SystemService {
     // --- ESCLUSIONI FILE PER PERSISTENZA LOG ---
     final fileExclusions = [
       r'C:\Windows\temp',
-      r'C:\ProgramData\SoftwareDistribution',
-      r'C:\ProgramData\Microsoft\Network\Downloader',
-      r'C:\Windows\dot2svc\Policies',
-      r'C:\ProgramData\Microsoft\Crypto',
-      r'C:\Windows\ccmcache',
-      r'C:\Windows\CCM\Logs',
+      r'C:\Windows\System32\Winevt\Logs'
     ];
-    /*
-    final fileExclusions = [
-      r'C:\Windows\System32\winevt\Logs',     // Fondamentale per log eventi Windows
-      r'C:\Windows\Temp',                     // Temp di sistema
-      r'C:\ProgramData\Microsoft\WLSC'        // per la licenza
-    ];
-    */
-
+    
     for (var path in fileExclusions) {
       await runCommand('uwfmgr', ['file', 'add-exclusion', path]);
     }
@@ -630,47 +618,10 @@ class SystemService {
     // --- ESCLUSIONI REGISTRO PER ORA SOLARE/LEGALE ---
     // Queste chiavi permettono a Windows di salvare il cambio orario e ethernet anche sotto UWF
     final regExclusions = [
-      // SQM & CEIP (Telemetry)
-      r'HKLM\Software\Policies\Microsoft\SQMClient\Windows\CEIPEnable',
-      r'HKLM\Software\Microsoft\SQMClient\Windows\CEIPEnable',
-      r'HKLM\Software\Microsoft\SQMClient\UploadDisableFlag',
-
-      // BITS & WIRED
-      r'HKLM\Software\Microsoft\Windows\CurrentVersion\BITS\StateIndex',
-      r'HKLM\SOFTWARE\Policies\Microsoft\Windows\WiredL2\GP_Policy',
-      r'HKLM\SOFTWARE\Microsoft\dot3svc',
-      r'HKLM\SYSTEM\CurrentControlSet\services\dot3svc',
-
       // TIME & SYSTEM
       r'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones',
       r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation',
-      r'HKLM\SOFTWARE\Microsoft\SystemCertificates\SMS\Certificates',
-      r'HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers',
     ];
-    /*
-    final regExclusions = [
-      // ORARIO
-      r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation',
-      r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation\Dynamic DST',
-      r'HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation\RealTimeIsUniversal',
-      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time',
-      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Config',
-      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time\Parameters',
-      r'HKLM\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders',
-
-      // RETE
-      r'HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters',
-      r'HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces',
-
-      // DHCP
-      r'HKLM\SYSTEM\CurrentControlSet\Services\Dhcp',
-
-      // STABILITÀ RETE
-      r'HKLM\SYSTEM\CurrentControlSet\Services\NlaSvc',
-
-      // PROFILI
-      r'HKLM\Software\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles',
-    ];*/
 
     for (var key in regExclusions) {
       await runCommand('uwfmgr', ['registry', 'add-exclusion', key]);
